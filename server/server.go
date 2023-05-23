@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/gorilla/mux"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
 )
 
 type Product struct {
@@ -107,7 +109,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	db, err := sql.Open("mysql", "test:changeme123@tcp(194.35.48.20)/pavel")
+	db, err := sql.Open("mysql", getConnectionString())
 	if err != nil {
 		panic(err)
 	}
@@ -133,4 +135,14 @@ func main() {
 
 	fmt.Println("Server is listening...")
 	http.ListenAndServe(":8181", nil)
+}
+
+func getConnectionString() string {
+	return fmt.Sprintf(
+		"%s:%s@tcp(%s)/%s",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASS"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_NAME"),
+	)
 }
