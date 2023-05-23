@@ -4,13 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
+	"github.com/grip211/crud/pkg/signal"
+	"github.com/urfave/cli/v2"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
-
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/gorilla/mux"
+	"time"
 )
 
 type Product struct {
@@ -21,6 +23,20 @@ type Product struct {
 }
 
 var database *sql.DB
+
+// удаление наименований
+func DeleteHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	id := vars["id"]
+
+	_, err := database.Exec("delete from productdb.Products where id = ?", id)
+	if err != nil {
+		log.Println(err)
+	}
+	http.Redirect(w, r, "/", 301)
+
+}
 
 // возвращаем пользователю страницу для редактирования объекта
 func EditPage(w http.ResponseWriter, r *http.Request) {
@@ -105,17 +121,46 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, products)
 }
 
+func getConnectionString() string {
+	return fmt.Sprintf(
+		"%s:%s@tcp(%s)/%s",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASS"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_NAME"),
+	)
+}
+
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	application := &cli.App{
+		Flags: []cli.Flag{
+			// тут будет потом
+		},
+		Action: Main,
+	}
+	if err := application.Run(os.Args); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func Main(ctx *cli.Context) error {
+	appContext, cancel := context.WithCancel(ctx.Context)
+	defer func() {
+		cancel()
+		<-time.After(time.Second * 1)
+	}()
+
+	await, stop := signal.Notifier(func() {
+		fmt.Println("received a system signal, start shutdown process..")
+	})
 
 	db, err := sql.Open("mysql", getConnectionString())
 	if err != nil {
-		panic(err)
+		stop(err)
 	}
 
-	if err := db.PingContext(ctx); err != nil {
-		panic(err)
+	if err := db.PingContext(appContext); err != nil {
+		stop(err)
 	}
 
 	database = db
@@ -125,24 +170,20 @@ func main() {
 		}
 	}()
 
-	router := mux.NewRouter()
-	router.HandleFunc("/", IndexHandler)
-	router.HandleFunc("/create", CreateHandler)
-	router.HandleFunc("/edit/{id:[0-9]+}", EditPage).Methods("GET")
-	router.HandleFunc("/edit/{id:[0-9]+}", EditHandler).Methods("POST")
+	go func() {
+		router := mux.NewRouter()
+		router.HandleFunc("/", IndexHandler)
+		router.HandleFunc("/create", CreateHandler)
+		router.HandleFunc("/edit/{id:[0-9]+}", EditPage).Methods("GET")
+		router.HandleFunc("/edit/{id:[0-9]+}", EditHandler).Methods("POST")
+		router.HandleFunc("/delete/{id:[0-9]+}", DeleteHandler)
 
-	http.Handle("/", router)
+		http.Handle("/", router)
 
-	fmt.Println("Server is listening...")
-	http.ListenAndServe(":8181", nil)
-}
+		if err := http.ListenAndServe(":8181", nil); err != nil {
+			stop(err)
+		}
+	}()
 
-func getConnectionString() string {
-	return fmt.Sprintf(
-		"%s:%s@tcp(%s)/%s",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASS"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_NAME"),
-	)
+	return await()
 }
