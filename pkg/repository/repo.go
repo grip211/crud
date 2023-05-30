@@ -10,6 +10,9 @@ import (
 	"github.com/grip211/crud/pkg/database"
 )
 
+// Repo пишем структуру которая будет реализовывать все нужные нам методы для работы с базой данных
+// в нашем случае Create, Read, Update, Delete
+
 var ErrNotFound = errors.New("not found")
 
 type Repo struct {
@@ -26,9 +29,10 @@ func (r *Repo) Create(ctx context.Context, command *commands.CreateCommand) erro
 	_, err := r.db.Builder().
 		Insert("productdb.Products").
 		Rows(builder.Record{
-			"model":   command.Model,
-			"company": command.Company,
-			"price":   command.Price,
+			"model":    command.Model,
+			"company":  command.Company,
+			"quantity": command.Quantity,
+			"price":    command.Price,
 		}).
 		Executor().
 		ExecContext(ctx)
@@ -45,6 +49,7 @@ func (r *Repo) Read(ctx context.Context) ([]models.Product, error) {
 			builder.C("id"),
 			builder.C("company"),
 			builder.C("model"),
+			builder.C("quantity"),
 			builder.C("price"),
 		).
 		From("productdb.Products").
@@ -63,6 +68,7 @@ func (r *Repo) ReadOne(ctx context.Context, id int) (*models.Product, error) {
 			builder.C("id"),
 			builder.C("company"),
 			builder.C("model"),
+			builder.C("quantity"),
 			builder.C("price"),
 		).
 		From("productdb.Products").
@@ -84,9 +90,10 @@ func (r *Repo) Update(ctx context.Context, command *commands.UpdateCommand) erro
 	_, err := r.db.Builder().
 		Update("productdb.Products").
 		Set(builder.Record{
-			"model":   command.Model,
-			"company": command.Company,
-			"price":   command.Price,
+			"model":    command.Model,
+			"company":  command.Company,
+			"quantity": command.Quantity,
+			"price":    command.Price,
 		}).
 		Where(builder.C("id").Eq(command.ID)).
 		Executor().

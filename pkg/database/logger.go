@@ -1,5 +1,7 @@
 package database
 
+// тут пишем простую обертку для логирования запросов
+
 type Logger struct {
 	callback func(format string, v ...interface{})
 }

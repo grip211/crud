@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+// тут мы пишем простую обертку над параметрами подключения и их валидацией
+
 type Opt struct {
 	Host               string        `yaml:"host"`
 	User               string        `yaml:"user"`

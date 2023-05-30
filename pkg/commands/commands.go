@@ -2,33 +2,47 @@ package commands
 
 import "strconv"
 
+// в этом файле будем описывать структуры для более удобной манипуляции с входными и выходными данными
+
 type CreateCommand struct {
-	Model   string
-	Company string
-	Price   float32
+	Model    string
+	Company  string
+	Quantity int
+	Price    float32
 }
 
-func NewCreteCommand(model, company, price string) (*CreateCommand, error) {
+func NewCreteCommand(model, company, quantity, price string) (*CreateCommand, error) {
 	val, err := strconv.ParseFloat(price, 32)
 	if err != nil {
 		return nil, err
 	}
+	v, err := strconv.Atoi(quantity)
+	if err != nil {
+		return nil, err
+	}
 	return &CreateCommand{
-		Model:   model,
-		Company: company,
-		Price:   float32(val),
+		Model:    model,
+		Company:  company,
+		Quantity: int(v),
+		Price:    float32(val),
 	}, nil
 }
 
 type UpdateCommand struct {
-	ID      int
-	Model   string
-	Company string
-	Price   float32
+	ID       int
+	Model    string
+	Company  string
+	Quantity int
+	Price    float32
 }
 
-func NewUpdateCommand(id, model, company, price string) (*UpdateCommand, error) {
+func NewUpdateCommand(id, model, company, quantity, price string) (*UpdateCommand, error) {
 	val, err := strconv.ParseFloat(price, 32)
+	if err != nil {
+		return nil, err
+	}
+
+	v, err := strconv.Atoi(quantity)
 	if err != nil {
 		return nil, err
 	}
@@ -39,10 +53,11 @@ func NewUpdateCommand(id, model, company, price string) (*UpdateCommand, error) 
 	}
 
 	return &UpdateCommand{
-		ID:      i,
-		Model:   model,
-		Company: company,
-		Price:   float32(val),
+		ID:       i,
+		Model:    model,
+		Company:  company,
+		Quantity: int(v),
+		Price:    float32(val),
 	}, nil
 }
 

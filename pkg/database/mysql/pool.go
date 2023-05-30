@@ -14,6 +14,8 @@ import (
 	"github.com/grip211/crud/pkg/database"
 )
 
+// тут реализуем структуру, инкапсулирующая внутри себя коннекты с базой данных
+
 type ConnectionPool struct {
 	db *builder.Database
 }

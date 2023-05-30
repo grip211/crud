@@ -74,9 +74,10 @@ func buildEditHandler(repo *repository.Repo) func(w http.ResponseWriter, r *http
 		id := r.FormValue("id")
 		model := r.FormValue("model")
 		company := r.FormValue("company")
+		quantity := r.FormValue("quantity")
 		price := r.FormValue("price")
 
-		updateCommand, err := commands.NewUpdateCommand(id, model, company, price)
+		updateCommand, err := commands.NewUpdateCommand(id, model, company, quantity, price)
 		if err != nil {
 			log.Println(err)
 			return
@@ -101,9 +102,10 @@ func buildCreateHandler(repo *repository.Repo) func(w http.ResponseWriter, r *ht
 			}
 			model := r.FormValue("model")
 			company := r.FormValue("company")
+			quantity := r.FormValue("quantity")
 			price := r.FormValue("price")
 
-			createCommand, err := commands.NewCreteCommand(model, company, price)
+			createCommand, err := commands.NewCreteCommand(model, company, quantity, price)
 			if err != nil {
 				log.Println(err)
 				return
@@ -145,9 +147,7 @@ func getConnectionString() string {
 
 func main() {
 	application := &cli.App{
-		Flags: []cli.Flag{
-			// тут будет потом
-		},
+		Flags:  []cli.Flag{},
 		Action: Main,
 	}
 	if err := application.Run(os.Args); err != nil {
