@@ -1,6 +1,8 @@
 package commands
 
-import "strconv"
+import (
+	"strconv"
+)
 
 // в этом файле будем описывать структуры для более удобной манипуляции с входными и выходными данными
 
@@ -72,5 +74,18 @@ func NewDeleteCommand(id string) (*DeleteCommand, error) {
 	}
 	return &DeleteCommand{
 		ID: i,
+	}, nil
+}
+
+type FeatureCommand struct {
+	//ID int
+	Model   string
+	Company string
+}
+
+func NewFeatureCommand(model, company string) (*FeatureCommand, error) {
+	return &FeatureCommand{
+		Model:   model,
+		Company: company,
 	}, nil
 }

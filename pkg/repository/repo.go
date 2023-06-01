@@ -115,3 +115,18 @@ func (r *Repo) Delete(ctx context.Context, command *commands.DeleteCommand) erro
 	}
 	return nil
 }
+
+func (r *Repo) Feature(ctx context.Context, command *commands.FeatureCommand) error {
+	_, err := r.db.Builder().
+		Insert("productdb.Products").
+		Rows(builder.Record{
+			"model":   command.Model,
+			"company": command.Company,
+		}).
+		Executor().
+		ExecContext(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}

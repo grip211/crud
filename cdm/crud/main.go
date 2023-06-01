@@ -130,9 +130,40 @@ func buildIndexHandler(repo *repository.Repo) func(w http.ResponseWriter, r *htt
 			log.Println(err)
 			return
 		}
+
 		tmpl, _ := template.ParseFiles("templates/index.html")
 		tmpl.Execute(w, products)
 	}
+}
+
+func buildFeatureHandler(repo *repository.Repo) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			err := r.ParseForm()
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
+			model := r.FormValue("model")
+			company := r.FormValue("company")
+			featureCommand, err := commands.NewFeatureCommand(model, company)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
+			err = repo.Feature(r.Context(), featureCommand)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			http.Redirect(w, r, "/", 301)
+		} else {
+			http.ServeFile(w, r, "templates/feature.html")
+		}
+	}
+
 }
 
 func getConnectionString() string {
@@ -190,6 +221,7 @@ func Main(ctx *cli.Context) error {
 		router.HandleFunc("/edit/{id:[0-9]+}", buildEditPageHandler(repo)).Methods("GET")
 		router.HandleFunc("/edit/{id:[0-9]+}", buildEditHandler(repo)).Methods("POST")
 		router.HandleFunc("/delete/{id:[0-9]+}", buildDeleteHandler(repo))
+		router.HandleFunc("/feature", buildFeatureHandler(repo))
 
 		http.Handle("/", router)
 
