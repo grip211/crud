@@ -26,7 +26,7 @@ func New(db database.Pool) *Repo {
 }
 
 func (r *Repo) Create(ctx context.Context, command *commands.CreateCommand) error {
-	_, err := r.db.Builder().
+	result, err := r.db.Builder().
 		Insert("productdb.Products").
 		Rows(builder.Record{
 			"model":    command.Model,
@@ -39,6 +39,27 @@ func (r *Repo) Create(ctx context.Context, command *commands.CreateCommand) erro
 	if err != nil {
 		return err
 	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return err
+	}
+
+	_, err = r.db.Builder().
+		Insert("productdb.ProductsCharacteristics").
+		Rows(builder.Record{
+			"product_id":   id,
+			"cpu":          command.CPU,
+			"memory":       command.Memory,
+			"display_size": command.DisplaySize,
+			"camera":       command.Camera,
+		}).
+		Executor().
+		ExecContext(ctx)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -86,6 +107,35 @@ func (r *Repo) ReadOne(ctx context.Context, id int) (*models.Product, error) {
 	return &product, nil
 }
 
+func (r *Repo) ReadOneWithCharacteristics(ctx context.Context, id int) (*models.Product, error) {
+	var product models.Product
+	found, err := r.db.Builder().
+		Select(
+			builder.I("Products.id").As("id"),
+			builder.C("model"),
+			builder.I("ProductsCharacteristics.cpu").As(builder.C("characteristics.cpu")),
+		).
+		From("productdb.Products").
+		LeftJoin(
+			builder.T("ProductsCharacteristics"),
+			builder.On(builder.Ex{
+				"Products.id": builder.I("ProductsCharacteristics.product_id"),
+			}),
+		).
+		Where(
+			builder.I("Products.id").Eq(id),
+		).
+		ScanStructContext(ctx, &product)
+
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, ErrNotFound
+	}
+	return &product, nil
+}
+
 func (r *Repo) Update(ctx context.Context, command *commands.UpdateCommand) error {
 	_, err := r.db.Builder().
 		Update("productdb.Products").
@@ -101,6 +151,9 @@ func (r *Repo) Update(ctx context.Context, command *commands.UpdateCommand) erro
 	if err != nil {
 		return err
 	}
+
+	// update product features where product_id eq id
+
 	return nil
 }
 

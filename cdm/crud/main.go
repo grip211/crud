@@ -104,8 +104,18 @@ func buildCreateHandler(repo *repository.Repo) func(w http.ResponseWriter, r *ht
 			company := r.FormValue("company")
 			quantity := r.FormValue("quantity")
 			price := r.FormValue("price")
+			cpu := r.FormValue("cpu")
 
-			createCommand, err := commands.NewCreteCommand(model, company, quantity, price)
+			createCommand, err := commands.NewCreteCommand(
+				model,
+				company,
+				quantity,
+				price,
+				cpu,
+				"",
+				"",
+				"",
+			)
 			if err != nil {
 				log.Println(err)
 				return
@@ -138,42 +148,32 @@ func buildIndexHandler(repo *repository.Repo) func(w http.ResponseWriter, r *htt
 
 func buildFeatureHandler(repo *repository.Repo) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			err := r.ParseForm()
-			if err != nil {
-				log.Println(err)
-				return
-			}
+		vars := mux.Vars(r)
+		id := vars["id"]
 
-			model := r.FormValue("model")
-			company := r.FormValue("company")
-			featureCommand, err := commands.NewFeatureCommand(model, company)
-			if err != nil {
-				log.Println(err)
-				return
-			}
+		iid, err := strconv.Atoi(id)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
-			err = repo.Feature(r.Context(), featureCommand)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			http.Redirect(w, r, "/", 301)
-		} else {
-			http.ServeFile(w, r, "templates/feature.html")
+		products, err := repo.ReadOneWithCharacteristics(r.Context(), iid)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		tmpl, err := template.ParseFiles("templates/feature.html")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		if err = tmpl.Execute(w, products); err != nil {
+			fmt.Println(err)
+			return
 		}
 	}
-
-}
-
-func getConnectionString() string {
-	return fmt.Sprintf(
-		"%s:%s@tcp(%s)/%s",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASS"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_NAME"),
-	)
 }
 
 func main() {
@@ -221,7 +221,7 @@ func Main(ctx *cli.Context) error {
 		router.HandleFunc("/edit/{id:[0-9]+}", buildEditPageHandler(repo)).Methods("GET")
 		router.HandleFunc("/edit/{id:[0-9]+}", buildEditHandler(repo)).Methods("POST")
 		router.HandleFunc("/delete/{id:[0-9]+}", buildDeleteHandler(repo))
-		router.HandleFunc("/feature", buildFeatureHandler(repo))
+		router.HandleFunc("/feature/{id:[0-9]+}", buildFeatureHandler(repo))
 
 		http.Handle("/", router)
 

@@ -11,9 +11,16 @@ type CreateCommand struct {
 	Company  string
 	Quantity int
 	Price    float32
+
+	CPU         int
+	Memory      int
+	DisplaySize int
+	Camera      int
 }
 
-func NewCreteCommand(model, company, quantity, price string) (*CreateCommand, error) {
+func NewCreteCommand(
+	model, company, quantity, price, cpu, memory, display, camera string,
+) (*CreateCommand, error) {
 	val, err := strconv.ParseFloat(price, 32)
 	if err != nil {
 		return nil, err
@@ -22,11 +29,18 @@ func NewCreteCommand(model, company, quantity, price string) (*CreateCommand, er
 	if err != nil {
 		return nil, err
 	}
+
+	vCPU, err := strconv.Atoi(cpu)
+	if err != nil {
+		return nil, err
+	}
+
 	return &CreateCommand{
 		Model:    model,
 		Company:  company,
-		Quantity: int(v),
+		Quantity: v,
 		Price:    float32(val),
+		CPU:      vCPU,
 	}, nil
 }
 
@@ -36,6 +50,11 @@ type UpdateCommand struct {
 	Company  string
 	Quantity int
 	Price    float32
+
+	CPU         int
+	Memory      int
+	DisplaySize int
+	Camera      int
 }
 
 func NewUpdateCommand(id, model, company, quantity, price string) (*UpdateCommand, error) {
