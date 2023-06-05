@@ -46,7 +46,7 @@ func (r *Repo) Create(ctx context.Context, command *commands.CreateCommand) erro
 	}
 
 	_, err = r.db.Builder().
-		Insert("productdb.ProductsCharacteristics").
+		Insert("productdb.ProductsFeatures").
 		Rows(builder.Record{
 			"product_id":   id,
 			"cpu":          command.CPU,
@@ -112,15 +112,20 @@ func (r *Repo) ReadOneWithCharacteristics(ctx context.Context, id int) (*models.
 	found, err := r.db.Builder().
 		Select(
 			builder.I("Products.id").As("id"),
+			builder.C("company"),
 			builder.C("model"),
-			builder.I("ProductsCharacteristics.cpu").As(builder.C("characteristics.cpu")),
+			builder.C("quantity"),
+			builder.C("price"),
+			builder.I("ProductsFeatures.cpu").As(builder.C("features.cpu")),
+			builder.I("ProductsFeatures.memory").As(builder.C("features.memory")),
+			builder.I("ProductsFeatures.display_size").As(builder.C("features.display")),
+			builder.I("ProductsFeatures.camera").As(builder.C("features.camera")),
 		).
 		From("productdb.Products").
 		LeftJoin(
-			builder.T("ProductsCharacteristics"),
+			builder.T("ProductsFeatures"),
 			builder.On(builder.Ex{
-				"Products.id": builder.I("ProductsCharacteristics.product_id"),
-			}),
+				"Products.id": builder.I("ProductsFeatures.product_id")}),
 		).
 		Where(
 			builder.I("Products.id").Eq(id),
@@ -145,7 +150,26 @@ func (r *Repo) Update(ctx context.Context, command *commands.UpdateCommand) erro
 			"quantity": command.Quantity,
 			"price":    command.Price,
 		}).
-		Where(builder.C("id").Eq(command.ID)).
+		Where(
+			builder.C("id").Eq(command.ID),
+		).
+		Executor().
+		ExecContext(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.Builder().
+		Update("productdb.ProductsFeatures").
+		Set(builder.Record{
+
+			"cpu":     command.CPU,
+			"memory":  command.Memory,
+			"display": command.DisplaySize,
+			"camera":  command.Camera,
+		}).
+		Where(
+			builder.C("product_id").Eq(command.ID),
+		).
 		Executor().
 		ExecContext(ctx)
 	if err != nil {

@@ -196,9 +196,9 @@ func buildIndexHandler(repo *repository.Repo) fiber.Handler {
 
 ```go
 type EditForm struct {
-	ID      string `form:"name"`
-    Model   string `form:"name"`
-    Company string `form:"pass"`
+	ID      string `form:"id"`
+    Model   string `form:"model"`
+    Company string `form:"company"`
     Quantity string `from:"quantity"`
 	Price    string `form:"price"`
 }

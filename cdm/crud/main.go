@@ -51,7 +51,7 @@ func buildEditPageHandler(repo *repository.Repo) func(w http.ResponseWriter, r *
 			return
 		}
 
-		prod, err := repo.ReadOne(r.Context(), iid)
+		prod, err := repo.ReadOneWithCharacteristics(r.Context(), iid)
 
 		if err != nil {
 			log.Println(err)
@@ -105,6 +105,9 @@ func buildCreateHandler(repo *repository.Repo) func(w http.ResponseWriter, r *ht
 			quantity := r.FormValue("quantity")
 			price := r.FormValue("price")
 			cpu := r.FormValue("cpu")
+			memory := r.FormValue("memory")
+			display := r.FormValue("display")
+			camera := r.FormValue("camera")
 
 			createCommand, err := commands.NewCreteCommand(
 				model,
@@ -112,9 +115,9 @@ func buildCreateHandler(repo *repository.Repo) func(w http.ResponseWriter, r *ht
 				quantity,
 				price,
 				cpu,
-				"",
-				"",
-				"",
+				memory,
+				display,
+				camera,
 			)
 			if err != nil {
 				log.Println(err)

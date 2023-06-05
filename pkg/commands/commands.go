@@ -35,12 +35,30 @@ func NewCreteCommand(
 		return nil, err
 	}
 
+	vMemory, err := strconv.Atoi(memory)
+	if err != nil {
+		return nil, err
+	}
+
+	vDisplay, err := strconv.Atoi(display)
+	if err != nil {
+		return nil, err
+	}
+
+	vCamera, err := strconv.Atoi(camera)
+	if err != nil {
+		return nil, err
+	}
+
 	return &CreateCommand{
-		Model:    model,
-		Company:  company,
-		Quantity: v,
-		Price:    float32(val),
-		CPU:      vCPU,
+		Model:       model,
+		Company:     company,
+		Quantity:    v,
+		Price:       float32(val),
+		CPU:         vCPU,
+		Memory:      vMemory,
+		DisplaySize: vDisplay,
+		Camera:      vCamera,
 	}, nil
 }
 
