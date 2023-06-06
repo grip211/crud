@@ -75,7 +75,9 @@ type UpdateCommand struct {
 	Camera      int
 }
 
-func NewUpdateCommand(id, model, company, quantity, price string) (*UpdateCommand, error) {
+func NewUpdateCommand(
+	id, model, company, quantity, price, cpu, memory, display, camera string,
+) (*UpdateCommand, error) {
 	val, err := strconv.ParseFloat(price, 32)
 	if err != nil {
 		return nil, err
@@ -91,12 +93,36 @@ func NewUpdateCommand(id, model, company, quantity, price string) (*UpdateComman
 		return nil, err
 	}
 
+	vCPU, err := strconv.Atoi(cpu)
+	if err != nil {
+		return nil, err
+	}
+
+	vMemory, err := strconv.Atoi(memory)
+	if err != nil {
+		return nil, err
+	}
+
+	vDisplay, err := strconv.Atoi(display)
+	if err != nil {
+		return nil, err
+	}
+
+	vCamera, err := strconv.Atoi(camera)
+	if err != nil {
+		return nil, err
+	}
+
 	return &UpdateCommand{
-		ID:       i,
-		Model:    model,
-		Company:  company,
-		Quantity: int(v),
-		Price:    float32(val),
+		ID:          i,
+		Model:       model,
+		Company:     company,
+		Quantity:    int(v),
+		Price:       float32(val),
+		CPU:         vCPU,
+		Memory:      vMemory,
+		DisplaySize: vDisplay,
+		Camera:      vCamera,
 	}, nil
 }
 

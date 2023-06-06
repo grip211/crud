@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/gorilla/mux"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html/v2"
 	"github.com/grip211/crud/pkg/commands"
 	"github.com/grip211/crud/pkg/database"
 	"github.com/grip211/crud/pkg/database/mysql"
 	"github.com/grip211/crud/pkg/repository"
 	"github.com/grip211/crud/pkg/signal"
 	"github.com/urfave/cli/v2"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -20,162 +20,169 @@ import (
 )
 
 // удаление наименований
-func buildDeleteHandler(repo *repository.Repo) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		id := vars["id"]
-
+func buildDeleteHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		id := ctx.Params("id")
 		command, err := commands.NewDeleteCommand(id)
 		if err != nil {
 			fmt.Println(err)
-			return
+			return err
 		}
 
-		err = repo.Delete(r.Context(), command)
+		err = repo.Delete(ctx.Context(), command)
 		if err != nil {
 			log.Println(err)
+			return err
 		}
-		http.Redirect(w, r, "/", 301)
+
+		return ctx.Redirect("/", 301)
 	}
 }
 
-// возвращаем пользователю страницу для редактирования объекта
-func buildEditPageHandler(repo *repository.Repo) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		id := vars["id"]
+func buildEditPageHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		id := ctx.Params("id")
 
 		iid, err := strconv.Atoi(id)
 		if err != nil {
 			fmt.Println(err)
-			return
+			return err
 		}
 
-		prod, err := repo.ReadOneWithCharacteristics(r.Context(), iid)
-
+		prod, err := repo.ReadOneWithFeatures(ctx.Context(), iid)
 		if err != nil {
-			log.Println(err)
-			http.Error(w, http.StatusText(404), http.StatusNotFound)
-		} else {
-			tmpl, _ := template.ParseFiles("templates/edit.html")
-			tmpl.Execute(w, prod)
+			return ctx.Status(http.StatusNotFound).SendString("NotFound")
 		}
+
+		return ctx.Render("edit", prod)
 	}
+}
+
+type EditForm struct {
+	ID       string `form:"id"`
+	Model    string `form:"model"`
+	Company  string `form:"company"`
+	Quantity string `from:"quantity"`
+	Price    string `form:"price"`
+
+	CPU     string `form:"cpu"`
+	Memory  string `form:"memory"`
+	Display string `form:"display"`
+	Camera  string `form:"camera"`
 }
 
 // получаем измененные данные и сохраняем их в БД
-func buildEditHandler(repo *repository.Repo) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		err := r.ParseForm()
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		id := r.FormValue("id")
-		model := r.FormValue("model")
-		company := r.FormValue("company")
-		quantity := r.FormValue("quantity")
-		price := r.FormValue("price")
-
-		updateCommand, err := commands.NewUpdateCommand(id, model, company, quantity, price)
-		if err != nil {
-			log.Println(err)
-			return
+func buildEditHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		edit := &EditForm{}
+		if err := ctx.BodyParser(edit); err != nil {
+			return err
 		}
 
-		err = repo.Update(r.Context(), updateCommand)
+		updateCommand, err := commands.NewUpdateCommand(
+			edit.ID,
+			edit.Model,
+			edit.Company,
+			edit.Quantity,
+			edit.Price,
+			edit.CPU,
+			edit.Memory,
+			edit.Display,
+			edit.Camera,
+		)
 		if err != nil {
 			log.Println(err)
-			return
+			return err
 		}
-		http.Redirect(w, r, "/", 301)
+
+		err = repo.Update(ctx.Context(), updateCommand)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		return ctx.Redirect("/", 301)
 	}
 }
 
-func buildCreateHandler(repo *repository.Repo) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			err := r.ParseForm()
-			if err != nil {
-				log.Println(err)
-				return
+type CreatForm struct {
+	ID       string `form:"id"`
+	Model    string `form:"model"`
+	Company  string `form:"company"`
+	Quantity string `from:"quantity"`
+	Price    string `form:"price"`
+
+	CPU     string `form:"cpu"`
+	Memory  string `form:"memory"`
+	Display string `form:"display"`
+	Camera  string `form:"camera"`
+}
+
+func buildCreateHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		if ctx.Method() == "POST" {
+			creat := &CreatForm{}
+			if err := ctx.BodyParser(creat); err != nil {
+				return err
 			}
-			model := r.FormValue("model")
-			company := r.FormValue("company")
-			quantity := r.FormValue("quantity")
-			price := r.FormValue("price")
-			cpu := r.FormValue("cpu")
-			memory := r.FormValue("memory")
-			display := r.FormValue("display")
-			camera := r.FormValue("camera")
 
 			createCommand, err := commands.NewCreteCommand(
-				model,
-				company,
-				quantity,
-				price,
-				cpu,
-				memory,
-				display,
-				camera,
+				creat.Model,
+				creat.Company,
+				creat.Quantity,
+				creat.Price,
+				creat.CPU,
+				creat.Memory,
+				creat.Display,
+				creat.Camera,
 			)
 			if err != nil {
 				log.Println(err)
-				return
+				return err
 			}
 
-			err = repo.Create(r.Context(), createCommand)
+			err = repo.Create(ctx.Context(), createCommand)
 			if err != nil {
 				log.Println(err)
-				return
+				return err
 			}
-			http.Redirect(w, r, "/", 301)
-		} else {
-			http.ServeFile(w, r, "templates/create.html")
+			return ctx.Redirect("/", 301)
 		}
+
+		return ctx.Render("create", fiber.Map{})
 	}
 }
 
-func buildIndexHandler(repo *repository.Repo) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		products, err := repo.Read(r.Context())
+func buildIndexHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		products, err := repo.Read(ctx.Context())
 		if err != nil {
 			log.Println(err)
-			return
+			return err
 		}
 
-		tmpl, _ := template.ParseFiles("templates/index.html")
-		tmpl.Execute(w, products)
+		return ctx.Render("index", fiber.Map{
+			"Products": products,
+		})
 	}
 }
 
-func buildFeatureHandler(repo *repository.Repo) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		id := vars["id"]
+func buildFeatureHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		id := ctx.Params("id")
 
 		iid, err := strconv.Atoi(id)
 		if err != nil {
 			fmt.Println(err)
-			return
+			return err
 		}
 
-		products, err := repo.ReadOneWithCharacteristics(r.Context(), iid)
+		product, err := repo.ReadOneWithFeatures(ctx.Context(), iid)
 		if err != nil {
 			log.Println(err)
-			return
+			return err
 		}
 
-		tmpl, err := template.ParseFiles("templates/feature.html")
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		if err = tmpl.Execute(w, products); err != nil {
-			fmt.Println(err)
-			return
-		}
+		return ctx.Render("feature", product)
 	}
 }
 
@@ -218,20 +225,32 @@ func Main(ctx *cli.Context) error {
 	repo := repository.New(conn)
 
 	go func() {
-		router := mux.NewRouter()
-		router.HandleFunc("/", buildIndexHandler(repo))
-		router.HandleFunc("/create", buildCreateHandler(repo))
-		router.HandleFunc("/edit/{id:[0-9]+}", buildEditPageHandler(repo)).Methods("GET")
-		router.HandleFunc("/edit/{id:[0-9]+}", buildEditHandler(repo)).Methods("POST")
-		router.HandleFunc("/delete/{id:[0-9]+}", buildDeleteHandler(repo))
-		router.HandleFunc("/feature/{id:[0-9]+}", buildFeatureHandler(repo))
+		engine := html.New("./templates", ".html")
 
-		http.Handle("/", router)
+		server := fiber.New(fiber.Config{
+			Views: engine,
+		})
 
-		if err := http.ListenAndServe(":8181", nil); err != nil {
+		server.Get("/", buildIndexHandler(repo))
+		server.Get("/create", buildCreateHandler(repo))
+		server.Get("/delete/:id", buildDeleteHandler(repo))
+		server.Get("/edit/:id", buildEditPageHandler(repo))
+		server.Get("/feature/:id", buildFeatureHandler(repo))
+
+		server.Post("/edit/:id?", buildEditHandler(repo))
+		server.Post("/create", buildCreateHandler(repo))
+
+		ln, err := signal.Listener(appContext, 1, "/tmp/crud.sock", ":8181")
+		if err != nil {
+			stop(err)
+			return
+		}
+
+		if err := server.Listener(ln); err != nil {
 			stop(err)
 		}
 	}()
 
 	return await()
+
 }

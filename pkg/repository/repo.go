@@ -107,7 +107,7 @@ func (r *Repo) ReadOne(ctx context.Context, id int) (*models.Product, error) {
 	return &product, nil
 }
 
-func (r *Repo) ReadOneWithCharacteristics(ctx context.Context, id int) (*models.Product, error) {
+func (r *Repo) ReadOneWithFeatures(ctx context.Context, id int) (*models.Product, error) {
 	var product models.Product
 	found, err := r.db.Builder().
 		Select(
@@ -158,25 +158,27 @@ func (r *Repo) Update(ctx context.Context, command *commands.UpdateCommand) erro
 	if err != nil {
 		return err
 	}
-	_, err = r.db.Builder().
-		Update("productdb.ProductsFeatures").
-		Set(builder.Record{
 
-			"cpu":     command.CPU,
-			"memory":  command.Memory,
-			"display": command.DisplaySize,
-			"camera":  command.Camera,
+	_, err = r.db.Builder().
+		Insert("productdb.ProductsFeatures").
+		Rows(builder.Record{
+			"product_id":   command.ID,
+			"cpu":          command.CPU,
+			"memory":       command.Memory,
+			"display_size": command.DisplaySize,
+			"camera":       command.Camera,
 		}).
-		Where(
-			builder.C("product_id").Eq(command.ID),
-		).
+		OnConflict(builder.DoUpdate("key", builder.Record{
+			"cpu":          command.CPU,
+			"memory":       command.Memory,
+			"display_size": command.DisplaySize,
+			"camera":       command.Camera,
+		})).
 		Executor().
 		ExecContext(ctx)
 	if err != nil {
 		return err
 	}
-
-	// update product features where product_id eq id
 
 	return nil
 }
