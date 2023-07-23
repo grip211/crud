@@ -8,6 +8,7 @@ import (
 
 	builder "github.com/doug-martin/goqu/v9"
 
+	// nolint:revive // it's OK
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	_ "github.com/go-sql-driver/mysql"
 

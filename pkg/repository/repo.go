@@ -3,15 +3,24 @@ package repository
 import (
 	"context"
 	"errors"
+
 	builder "github.com/doug-martin/goqu/v9"
-	"github.com/grip211/crud/pkg/models"
 
 	"github.com/grip211/crud/pkg/commands"
 	"github.com/grip211/crud/pkg/database"
+	"github.com/grip211/crud/pkg/models"
 )
 
 // Repo пишем структуру которая будет реализовывать все нужные нам методы для работы с базой данных
 // в нашем случае Create, Read, Update, Delete
+type repo interface {
+	Create(ctx context.Context, command *commands.CreateCommand) (int, error)
+	Read(ctx context.Context, commands *commands.ReadCommand) (int, error)
+	Delete(ctx context.Context, command commands.DeleteCommand) (int, error)
+	Update(ctx context.Context, command commands.UpdateCommand) (int, error)
+	Feature(ctx context.Context, command commands.FeatureCommand) (int, error)
+	// ...other Read, Delete and etc.
+}
 
 var ErrNotFound = errors.New("not found")
 
@@ -25,7 +34,7 @@ func New(db database.Pool) *Repo {
 	}
 }
 
-func (r *Repo) Create(ctx context.Context, command *commands.CreateCommand) error {
+func (r *Repo) Create(ctx context.Context, command *commands.CreateCommand) (int, error) {
 	result, err := r.db.Builder().
 		Insert("productdb.Products").
 		Rows(builder.Record{
@@ -37,12 +46,12 @@ func (r *Repo) Create(ctx context.Context, command *commands.CreateCommand) erro
 		Executor().
 		ExecContext(ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	_, err = r.db.Builder().
@@ -57,10 +66,10 @@ func (r *Repo) Create(ctx context.Context, command *commands.CreateCommand) erro
 		Executor().
 		ExecContext(ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return int(id), nil
 }
 
 func (r *Repo) Read(ctx context.Context) ([]models.Product, error) {

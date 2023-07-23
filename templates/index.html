@@ -12,14 +12,14 @@
     <thead><th>Id</th><th>Model</th><th>Company</th><th>Quantity</th><th>Price</th><th></th></thead>
     {{range .Products }}
     <tr>
-        <td>{{.Id}}</td>
+        <td>{{.ID}}</td>
         <td>{{.Model}}</td>
         <td>{{.Company}}</td>
         <td>{{.Quantity}}</td>
         <td>{{.Price}}</td>
-        <td><a href="/edit/{{.Id}}">Изменить</a> |
-            <a href="/delete/{{.Id}}">Удалить</a>
-            <a href="/feature/{{.Id}}"> Особенности</a>
+        <td><a href="/edit/{{.ID}}">Изменить</a> |
+            <a href="/delete/{{.ID}}">Удалить</a>
+            <a href="/feature/{{.ID}}"> Особенности</a>
         </td>
     </tr>
     {{end}}

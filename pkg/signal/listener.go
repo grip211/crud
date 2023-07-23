@@ -52,7 +52,7 @@ func maybeChmodSocket(c context.Context, sock string) {
 				fmt.Println("context is canceled")
 				return
 			case <-time.After(time.Millisecond * 100):
-				fmt.Println(fmt.Sprintf("loop %d for chmod unix socket (%s)", tryCount, sock))
+				fmt.Printf("loop %d for chmod unix socket (%s) \n", tryCount, sock)
 
 				if err := os.Chmod(sock, 0o666); err != nil {
 					fmt.Println(err)
@@ -62,7 +62,7 @@ func maybeChmodSocket(c context.Context, sock string) {
 				_, err := os.Stat(sock)
 				// if the file exists and it already has permissions
 				if err == nil {
-					fmt.Println(fmt.Sprintf("unix socket (%s) is ready for listen", sock))
+					fmt.Printf("unix socket (%s) is ready for listen \n", sock)
 					return
 				}
 

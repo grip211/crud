@@ -5,7 +5,7 @@ import "database/sql"
 // тут мы будем описывать структуры для чтения
 
 type Product struct {
-	Id       int      `db:"id"`
+	ID       int      `db:"id"`
 	Model    string   `db:"model"`
 	Company  string   `db:"company"`
 	Quantity int      `db:"quantity"`

@@ -3,20 +3,24 @@ package main
 import (
 	"context"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/template/html/v2"
-	"github.com/grip211/crud/pkg/commands"
-	"github.com/grip211/crud/pkg/database"
-	"github.com/grip211/crud/pkg/database/mysql"
-	"github.com/grip211/crud/pkg/repository"
-	"github.com/grip211/crud/pkg/signal"
-	"github.com/urfave/cli/v2"
+	"github.com/grip211/crud/pkg/apperror"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html/v2"
+	"github.com/urfave/cli/v2"
+
+	"github.com/grip211/crud/pkg/commands"
+	"github.com/grip211/crud/pkg/database"
+	"github.com/grip211/crud/pkg/database/mysql"
+	"github.com/grip211/crud/pkg/repository"
+	"github.com/grip211/crud/pkg/signal"
 )
 
 // удаление наименований
@@ -25,14 +29,14 @@ func buildDeleteHandler(repo *repository.Repo) fiber.Handler {
 		id := ctx.Params("id")
 		command, err := commands.NewDeleteCommand(id)
 		if err != nil {
-			fmt.Println(err)
-			return err
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
 		}
 
 		err = repo.Delete(ctx.Context(), command)
 		if err != nil {
-			log.Println(err)
-			return err
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
 		}
 
 		return ctx.Redirect("/", 301)
@@ -45,8 +49,8 @@ func buildEditPageHandler(repo *repository.Repo) fiber.Handler {
 
 		iid, err := strconv.Atoi(id)
 		if err != nil {
-			fmt.Println(err)
-			return err
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
 		}
 
 		prod, err := repo.ReadOneWithFeatures(ctx.Context(), iid)
@@ -91,14 +95,14 @@ func buildEditHandler(repo *repository.Repo) fiber.Handler {
 			edit.Camera,
 		)
 		if err != nil {
-			log.Println(err)
-			return err
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
 		}
 
 		err = repo.Update(ctx.Context(), updateCommand)
 		if err != nil {
-			log.Println(err)
-			return err
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
 		}
 		return ctx.Redirect("/", 301)
 	}
@@ -136,14 +140,14 @@ func buildCreateHandler(repo *repository.Repo) fiber.Handler {
 				creat.Camera,
 			)
 			if err != nil {
-				log.Println(err)
-				return err
+				// убрать после того как добавишь обработку ошибок в ErrorHandler
+				return apperror.ErrEndFound
 			}
 
-			err = repo.Create(ctx.Context(), createCommand)
+			_, err = repo.Create(ctx.Context(), createCommand)
 			if err != nil {
-				log.Println(err)
-				return err
+				// убрать после того как добавишь обработку ошибок в ErrorHandler
+				return apperror.ErrEndFound
 			}
 			return ctx.Redirect("/", 301)
 		}
@@ -156,8 +160,8 @@ func buildIndexHandler(repo *repository.Repo) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		products, err := repo.Read(ctx.Context())
 		if err != nil {
-			log.Println(err)
-			return err
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
 		}
 
 		return ctx.Render("index", fiber.Map{
@@ -172,14 +176,14 @@ func buildFeatureHandler(repo *repository.Repo) fiber.Handler {
 
 		iid, err := strconv.Atoi(id)
 		if err != nil {
-			fmt.Println(err)
-			return err
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
 		}
 
 		product, err := repo.ReadOneWithFeatures(ctx.Context(), iid)
 		if err != nil {
-			log.Println(err)
-			return err
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
 		}
 
 		return ctx.Render("feature", product)
@@ -229,6 +233,13 @@ func Main(ctx *cli.Context) error {
 
 		server := fiber.New(fiber.Config{
 			Views: engine,
+			ErrorHandler: func(ctx *fiber.Ctx, err error) error {
+				// тут будут печататься все ошибки с хедлеров
+				fmt.Println(err)
+
+				// показываем страницу ошибки
+				return ctx.Render("error", nil)
+			},
 		})
 
 		server.Get("/", buildIndexHandler(repo))
@@ -250,7 +261,5 @@ func Main(ctx *cli.Context) error {
 			stop(err)
 		}
 	}()
-
 	return await()
-
 }
