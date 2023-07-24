@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/grip211/crud/pkg/apperror"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/grip211/crud/pkg/apperror"
 
 	_ "github.com/go-sql-driver/mysql"
 
@@ -241,6 +242,9 @@ func Main(ctx *cli.Context) error {
 				return ctx.Render("error", nil)
 			},
 		})
+
+		v1 := server.Group("/api/v1")
+		v1.Get("/", buildIndexHandler(repo))
 
 		server.Get("/", buildIndexHandler(repo))
 		server.Get("/create", buildCreateHandler(repo))

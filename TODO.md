@@ -14,8 +14,60 @@
     - [ ] добавить конфигурацию линтера и исправить проблемы линтера в проекте
     - [ ] обавить обработчик ошибок для hendler-ов как тут: https://docs.gofiber.io/guide/error-handling/#custom-error-handler
     - [ ] добавить тесты, почитать про тесты и моки, юнит (unit) тесты, интеграционные тесты
+    - [ ] добавить поддержку REST API
+    - [ ] добавить поддержку gRPC
 
-3. **добавить конфигурацию линтера и исправить проблемы линтера в проекте:**
+3. **добавить поддержку REST API:**
+
+для всех хенжлеров, отдающих данные делаем следующее
+
+```go
+func buildRestIndexHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		products, err := repo.Read(ctx.Context())
+		if err != nil {
+			return err
+		}
+		return ctx.JSON("index", products)
+	}
+}
+
+// для структур добавляем теги json
+
+type Product struct {
+    ID       int      `db:"id" json:"id"`
+    Model    string   `db:"model" json:"model"`
+    Company  string   `db:"company" json:"company"`
+    Quantity int      `db:"quantity" json:"quantity"`
+    Price    float32  `db:"price" json:"price"`
+    Features Features `db:"features" json:"features"`
+}
+
+type Features struct {
+    CPU     sql.NullInt32 `db:"cpu" json:"cpu"`
+    Memory  sql.NullInt32 `db:"memory" json:"memory"`
+    Display sql.NullInt32 `db:"display" json:"display"`
+    Camera  sql.NullInt32 `db:"camera" json:"camera"`
+}
+
+// далее добавляем роуты с новыми хенжлерами согласно:
+
+- https://tproger.ru/translations/luchshie-praktiki-razrabotki-rest-api-20-sovetov/
+- https://developer.mozilla.org/ru/docs/Web/HTTP/Methods
+- https://proglib.io/p/15-luchshih-praktik-razrabotki-i-proektirovaniya-rest-api-2022-04-12
+
+v1 := server.Group("/api/v1")
+v1.Get("/products", buildRestIndexHandler(repo) // http://localhost:8181/api/v1/products
+v1.Post("/create", buildRestCreateHandler(repo)) // POST http://localhost:8181/api/v1/create
+v1.Post("/edit/:id", buildRestEditHandler(repo) // POST http://localhost:8181/api/v1/edit/:id
+v1.Delete("/delete/:id", buildRestDeleteHandler(repo))
+v1.Get("/feature/:id", buildRestFeatureHandler(repo))
+
+// посомтреть в постмане результаты выполнения различных запросов, главное правильно подставлять нужный метод
+// GET, POST, DELETE
+```
+
+5. **добавить конфигурацию линтера и исправить проблемы линтера в проекте:**
 
 Будем теперь внедрять линтеры в проект, для этого переходим сюды: https://golangci-lint.run/
 
