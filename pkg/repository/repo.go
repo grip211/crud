@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	builder "github.com/doug-martin/goqu/v9"
 
@@ -22,7 +23,13 @@ type repo interface {
 	// ...other Read, Delete and etc.
 }
 
-var ErrNotFound = errors.New("not found")
+var (
+	ErrNotFound                 = errors.New("not found")
+	ErrInsertProducts           = errors.New("insert products")
+	ErrInsertProductFeatures    = errors.New("insert product feature")
+	ErrLastInsertRow            = errors.New("get last insert row")
+	ErrFetchProductWithFeatures = errors.New("fetch products with features")
+)
 
 type Repo struct {
 	db database.Pool
@@ -46,12 +53,12 @@ func (r *Repo) Create(ctx context.Context, command *commands.CreateCommand) (int
 		Executor().
 		ExecContext(ctx)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("insert: %w", ErrInsertProducts)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("insert: %w", ErrLastInsertRow)
 	}
 
 	_, err = r.db.Builder().
@@ -66,7 +73,7 @@ func (r *Repo) Create(ctx context.Context, command *commands.CreateCommand) (int
 		Executor().
 		ExecContext(ctx)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("insert: %w", ErrInsertProductFeatures)
 	}
 
 	return int(id), nil
@@ -142,11 +149,12 @@ func (r *Repo) ReadOneWithFeatures(ctx context.Context, id int) (*models.Product
 		ScanStructContext(ctx, &product)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("features: %w", ErrFetchProductWithFeatures)
 	}
 	if !found {
 		return nil, ErrNotFound
 	}
+
 	return &product, nil
 }
 
@@ -192,29 +200,18 @@ func (r *Repo) Update(ctx context.Context, command *commands.UpdateCommand) erro
 	return nil
 }
 
-func (r *Repo) Delete(ctx context.Context, command *commands.DeleteCommand) error {
-	_, err := r.db.Builder().
+func (r *Repo) Delete(ctx context.Context, command *commands.DeleteCommand) (int64, error) {
+	res, err := r.db.Builder().
 		Delete("productdb.Products").
 		Where(builder.C("id").Eq(command.ID)).
 		Executor().
 		ExecContext(ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
-}
-
-func (r *Repo) Feature(ctx context.Context, command *commands.FeatureCommand) error {
-	_, err := r.db.Builder().
-		Insert("productdb.Products").
-		Rows(builder.Record{
-			"model":   command.Model,
-			"company": command.Company,
-		}).
-		Executor().
-		ExecContext(ctx)
+	affected, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	return affected, nil
 }
