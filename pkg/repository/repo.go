@@ -29,6 +29,7 @@ var (
 	ErrInsertProductFeatures    = errors.New("insert product feature")
 	ErrLastInsertRow            = errors.New("get last insert row")
 	ErrFetchProductWithFeatures = errors.New("fetch products with features")
+	ErrFetchProductWithReadOne  = errors.New("fetch products with read one")
 )
 
 type Repo struct {
@@ -115,7 +116,7 @@ func (r *Repo) ReadOne(ctx context.Context, id int) (*models.Product, error) {
 		ScanStructContext(ctx, &product)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read one: %w", ErrFetchProductWithReadOne)
 	}
 	if !found {
 		return nil, ErrNotFound

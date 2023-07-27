@@ -34,7 +34,7 @@ func buildDeleteHandler(repo *repository.Repo) fiber.Handler {
 			return apperror.ErrEndFound
 		}
 
-		err = repo.Delete(ctx.Context(), command)
+		_, err = repo.Delete(ctx.Context(), command)
 		if err != nil {
 			// убрать после того как добавишь обработку ошибок в ErrorHandler
 			return apperror.ErrEndFound
