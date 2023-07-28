@@ -153,10 +153,11 @@ func buildCreateHandler(repo *repository.Repo) fiber.Handler {
 			return ctx.Redirect("/", 301)
 		}
 
-		return ctx.Render("create", fiber.Map{})
+		return ctx.JSON("create")
 	}
 }
 
+/*
 func buildIndexHandler(repo *repository.Repo) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		products, err := repo.Read(ctx.Context())
@@ -168,6 +169,18 @@ func buildIndexHandler(repo *repository.Repo) fiber.Handler {
 		return ctx.Render("index", fiber.Map{
 			"Products": products,
 		})
+	}
+}
+
+*/
+
+func buildRestIndexHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		products, err := repo.Read(ctx.Context())
+		if err != nil {
+			return err
+		}
+		return ctx.JSON(products)
 	}
 }
 
@@ -244,9 +257,9 @@ func Main(ctx *cli.Context) error {
 		})
 
 		v1 := server.Group("/api/v1")
-		v1.Get("/", buildIndexHandler(repo))
+		v1.Get("/", buildRestIndexHandler(repo))
 
-		server.Get("/", buildIndexHandler(repo))
+		server.Get("/", buildRestIndexHandler(repo))
 		server.Get("/create", buildCreateHandler(repo))
 		server.Get("/delete/:id", buildDeleteHandler(repo))
 		server.Get("/edit/:id", buildEditPageHandler(repo))
