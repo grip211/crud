@@ -25,33 +25,33 @@ import (
 )
 
 // удаление наименований
-func buildDeleteHandler(repo *repository.Repo) fiber.Handler {
+func buildRestDeleteHandler(repo *repository.Repo) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		id := ctx.Params("id")
 		command, err := commands.NewDeleteCommand(id)
 		if err != nil {
 			// убрать после того как добавишь обработку ошибок в ErrorHandler
-			return apperror.ErrEndFound
+			return err
 		}
 
 		_, err = repo.Delete(ctx.Context(), command)
 		if err != nil {
 			// убрать после того как добавишь обработку ошибок в ErrorHandler
-			return apperror.ErrEndFound
+			return err
 		}
 
-		return ctx.Redirect("/", 301)
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": 301})
 	}
 }
 
-func buildEditPageHandler(repo *repository.Repo) fiber.Handler {
+func buildRestEditPageHandler(repo *repository.Repo) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		id := ctx.Params("id")
 
 		iid, err := strconv.Atoi(id)
 		if err != nil {
 			// убрать после того как добавишь обработку ошибок в ErrorHandler
-			return apperror.ErrEndFound
+			return err
 		}
 
 		prod, err := repo.ReadOneWithFeatures(ctx.Context(), iid)
@@ -59,7 +59,7 @@ func buildEditPageHandler(repo *repository.Repo) fiber.Handler {
 			return ctx.Status(http.StatusNotFound).SendString("NotFound")
 		}
 
-		return ctx.Render("edit", prod)
+		return ctx.JSON(prod)
 	}
 }
 
@@ -77,7 +77,7 @@ type EditForm struct {
 }
 
 // получаем измененные данные и сохраняем их в БД
-func buildEditHandler(repo *repository.Repo) fiber.Handler {
+func buildRestEditHandler(repo *repository.Repo) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		edit := &EditForm{}
 		if err := ctx.BodyParser(edit); err != nil {
@@ -97,15 +97,15 @@ func buildEditHandler(repo *repository.Repo) fiber.Handler {
 		)
 		if err != nil {
 			// убрать после того как добавишь обработку ошибок в ErrorHandler
-			return apperror.ErrEndFound
+			return err
 		}
 
 		err = repo.Update(ctx.Context(), updateCommand)
 		if err != nil {
 			// убрать после того как добавишь обработку ошибок в ErrorHandler
-			return apperror.ErrEndFound
+			return err
 		}
-		return ctx.Redirect("/", 301)
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": 301})
 	}
 }
 
@@ -122,7 +122,7 @@ type CreatForm struct {
 	Camera  string `form:"camera"`
 }
 
-func buildCreateHandler(repo *repository.Repo) fiber.Handler {
+func buildRestCreateHandler(repo *repository.Repo) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		if ctx.Method() == "POST" {
 			creat := &CreatForm{}
@@ -148,7 +148,7 @@ func buildCreateHandler(repo *repository.Repo) fiber.Handler {
 			_, err = repo.Create(ctx.Context(), createCommand)
 			if err != nil {
 				// убрать после того как добавишь обработку ошибок в ErrorHandler
-				return apperror.ErrEndFound
+				return err
 			}
 			return ctx.Redirect("/", 301)
 		}
@@ -184,23 +184,23 @@ func buildRestIndexHandler(repo *repository.Repo) fiber.Handler {
 	}
 }
 
-func buildFeatureHandler(repo *repository.Repo) fiber.Handler {
+func buildRestFeatureHandler(repo *repository.Repo) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		id := ctx.Params("id")
 
 		iid, err := strconv.Atoi(id)
 		if err != nil {
 			// убрать после того как добавишь обработку ошибок в ErrorHandler
-			return apperror.ErrEndFound
+			return err
 		}
 
 		product, err := repo.ReadOneWithFeatures(ctx.Context(), iid)
 		if err != nil {
 			// убрать после того как добавишь обработку ошибок в ErrorHandler
-			return apperror.ErrEndFound
+			return err
 		}
 
-		return ctx.Render("feature", product)
+		return ctx.JSON(product)
 	}
 }
 
@@ -258,15 +258,19 @@ func Main(ctx *cli.Context) error {
 
 		v1 := server.Group("/api/v1")
 		v1.Get("/", buildRestIndexHandler(repo))
+		v1.Post("/create", buildRestCreateHandler(repo))
+		v1.Post("/edit/:id", buildRestEditHandler(repo))
+		v1.Delete("/delete/:id", buildRestDeleteHandler(repo))
+		v1.Get("/feature/:id", buildRestFeatureHandler(repo))
 
 		server.Get("/", buildRestIndexHandler(repo))
-		server.Get("/create", buildCreateHandler(repo))
-		server.Get("/delete/:id", buildDeleteHandler(repo))
-		server.Get("/edit/:id", buildEditPageHandler(repo))
-		server.Get("/feature/:id", buildFeatureHandler(repo))
+		server.Get("/create", buildRestCreateHandler(repo))
+		server.Get("/delete/:id", buildRestDeleteHandler(repo))
+		server.Get("/edit/:id", buildRestEditPageHandler(repo))
+		server.Get("/feature/:id", buildRestFeatureHandler(repo))
 
-		server.Post("/edit/:id?", buildEditHandler(repo))
-		server.Post("/create", buildCreateHandler(repo))
+		server.Post("/edit/:id?", buildRestEditHandler(repo))
+		server.Post("/create", buildRestCreateHandler(repo))
 
 		ln, err := signal.Listener(appContext, 1, "/tmp/crud.sock", ":8181")
 		if err != nil {
