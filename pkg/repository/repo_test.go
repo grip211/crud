@@ -139,7 +139,7 @@ func TestRepo_Update(t *testing.T) {
 	type args struct {
 		command *commands.UpdateCommand
 	}
-	
+
 	tests := []struct {
 		name string
 		args args
@@ -158,7 +158,7 @@ func TestRepo_Update(t *testing.T) {
 					Camera:      60,
 				},
 			},
-			check: func(t *testing.T, ctx context.Context, repo *Repo, command *commands.UpdateCommand) {
+
 				id := repo.Update(ctx, command)
 				require.NoError(t, id)
 
@@ -170,7 +170,6 @@ func TestRepo_Update(t *testing.T) {
 				//})
 				require.NoError(t, err)
 			},
-		},
 		// ... other tests cases
 	}
 
