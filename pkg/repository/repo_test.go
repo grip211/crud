@@ -124,13 +124,25 @@ func TestRepo_Update(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
+	conn, err := mysql.New(ctx, &database.Opt{
+		Host:               os.Getenv("DB_Host"),
+		User:               os.Getenv("DB_USER"),
+		Password:           os.Getenv("DB_PASS"),
+		Name:               os.Getenv("DB_NAME"),
+		Dialect:            "mysql",
+		MaxConnMaxLifetime: time.Minute * 5,
+		MaxOpenConns:       10,
+		MaxIdleConns:       9,
+		Debug:              true,
+	})
+
 	type args struct {
 		command *commands.UpdateCommand
 	}
+	
 	tests := []struct {
-		name  string
-		args  args
-		check func(t *testing.T, ctx context.Context, repo *Repo, command *commands.UpdateCommand)
+		name string
+		args args
 	}{
 		{
 			name: "successfully update, get and delete record",
@@ -162,17 +174,6 @@ func TestRepo_Update(t *testing.T) {
 		// ... other tests cases
 	}
 
-	conn, err := mysql.New(ctx, &database.Opt{
-		Host:               os.Getenv("DB_Host"),
-		User:               os.Getenv("DB_USER"),
-		Password:           os.Getenv("DB_PASS"),
-		Name:               os.Getenv("DB_NAME"),
-		Dialect:            "mysql",
-		MaxConnMaxLifetime: time.Minute * 5,
-		MaxOpenConns:       10,
-		MaxIdleConns:       9,
-		Debug:              true,
-	})
 	require.NoError(t, err)
 
 	repo := &Repo{
