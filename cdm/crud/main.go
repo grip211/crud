@@ -239,18 +239,18 @@ func Main(ctx *cli.Context) error {
 			},
 		})
 
+		server.Get("/", buildRestIndexHandler(repo))
+		server.Post("/create", buildRestCreateHandler(repo))
+		server.Post("/edit/:id", buildRestEditHandler(repo))
+		server.Delete("/delete/:id", buildRestDeleteHandler(repo))
+		server.Get("/feature/:id", buildRestFeatureHandler(repo))
+
 		v1 := server.Group("/api/v1")
-		v1.Get("/", buildRestIndexHandler(repo))
-		v1.Post("/create", buildRestCreateHandler(repo))
-		v1.Post("/edit/:id", buildRestEditHandler(repo))
+		v1.Get("/products", buildRestIndexHandler(repo)) // http://localhost:8181/api/v1/products
+		v1.Post("/create", buildRestCreateHandler(repo)) // POST http://localhost:8181/api/v1/create
+		v1.Post("/edit/:id", buildRestEditHandler(repo)) // POST http://localhost:8181/api/v1/edit/:id
 		v1.Delete("/delete/:id", buildRestDeleteHandler(repo))
 		v1.Get("/feature/:id", buildRestFeatureHandler(repo))
-
-		server.Get("/", buildRestIndexHandler(repo))
-		server.Delete("/delete/:id", buildRestDeleteHandler(repo))
-		server.Post("/edit/:id", buildRestEditPageHandler(repo))
-		server.Get("/feature/:id", buildRestFeatureHandler(repo))
-		server.Post("/create", buildRestCreateHandler(repo))
 
 		ln, err := signal.Listener(appContext, 1, "/tmp/crud.sock", ":8181")
 		if err != nil {
