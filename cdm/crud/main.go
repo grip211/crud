@@ -110,16 +110,16 @@ func buildRestEditHandler(repo *repository.Repo) fiber.Handler {
 }
 
 type CreatForm struct {
-	ID       string `form:"id"`
-	Model    string `form:"model"`
-	Company  string `form:"company"`
-	Quantity string `from:"quantity"`
-	Price    string `form:"price"`
+	ID       string `form:"id" json:"id"`
+	Model    string `form:"model" json:"model"`
+	Company  string `form:"company" json:"company"`
+	Quantity string `from:"quantity" json:"quantity"`
+	Price    string `form:"price" json:"price"`
 
-	CPU     string `form:"cpu"`
-	Memory  string `form:"memory"`
-	Display string `form:"display"`
-	Camera  string `form:"camera"`
+	CPU     string `form:"cpu" json:"CPU"`
+	Memory  string `form:"memory" json:"memory"`
+	Display string `form:"display" json:"display"`
+	Camera  string `form:"camera" json:"camera"`
 }
 
 func buildRestCreateHandler(repo *repository.Repo) fiber.Handler {
@@ -239,11 +239,14 @@ func Main(ctx *cli.Context) error {
 			},
 		})
 
-		server.Get("/", buildRestIndexHandler(repo))
-		server.Post("/create", buildRestCreateHandler(repo))
-		server.Post("/edit/:id", buildRestEditHandler(repo))
-		server.Delete("/delete/:id", buildRestDeleteHandler(repo))
-		server.Get("/feature/:id", buildRestFeatureHandler(repo))
+		server.Get("/", buildIndexHandler(repo))
+		server.Get("/create", buildCreateHandler(repo))
+		server.Get("/delete/:id", buildDeleteHandler(repo))
+		server.Get("/edit/:id", buildEditPageHandler(repo))
+		server.Get("/feature/:id", buildFeatureHandler(repo))
+
+		server.Post("/edit/:id?", buildEditHandler(repo))
+		server.Post("/create", buildCreateHandler(repo))
 
 		v1 := server.Group("/api/v1")
 		v1.Get("/products", buildRestIndexHandler(repo)) // http://localhost:8181/api/v1/products
@@ -263,4 +266,147 @@ func Main(ctx *cli.Context) error {
 		}
 	}()
 	return await()
+}
+
+// non REST methods
+
+// удаление наименований
+func buildDeleteHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		id := ctx.Params("id")
+		command, err := commands.NewDeleteCommand(id)
+		if err != nil {
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
+		}
+
+		_, err = repo.Delete(ctx.Context(), command)
+		if err != nil {
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
+		}
+
+		return ctx.Redirect("/", 301)
+	}
+}
+
+func buildEditPageHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		id := ctx.Params("id")
+
+		iid, err := strconv.Atoi(id)
+		if err != nil {
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
+		}
+
+		prod, err := repo.ReadOneWithFeatures(ctx.Context(), iid)
+		if err != nil {
+			return ctx.Status(http.StatusNotFound).SendString("NotFound")
+		}
+
+		return ctx.Render("edit", prod)
+	}
+}
+
+// получаем измененные данные и сохраняем их в БД
+func buildEditHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		edit := &EditForm{}
+		if err := ctx.BodyParser(edit); err != nil {
+			return err
+		}
+
+		updateCommand, err := commands.NewUpdateCommand(
+			edit.ID,
+			edit.Model,
+			edit.Company,
+			edit.Quantity,
+			edit.Price,
+			edit.CPU,
+			edit.Memory,
+			edit.Display,
+			edit.Camera,
+		)
+		if err != nil {
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
+		}
+
+		err = repo.Update(ctx.Context(), updateCommand)
+		if err != nil {
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
+		}
+		return ctx.Redirect("/", 301)
+	}
+}
+
+func buildCreateHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		if ctx.Method() == "POST" {
+			creat := &CreatForm{}
+			if err := ctx.BodyParser(creat); err != nil {
+				return err
+			}
+
+			createCommand, err := commands.NewCreteCommand(
+				creat.Model,
+				creat.Company,
+				creat.Quantity,
+				creat.Price,
+				creat.CPU,
+				creat.Memory,
+				creat.Display,
+				creat.Camera,
+			)
+			if err != nil {
+				// убрать после того как добавишь обработку ошибок в ErrorHandler
+				return apperror.ErrEndFound
+			}
+
+			_, err = repo.Create(ctx.Context(), createCommand)
+			if err != nil {
+				// убрать после того как добавишь обработку ошибок в ErrorHandler
+				return apperror.ErrEndFound
+			}
+			return ctx.Redirect("/", 301)
+		}
+
+		return ctx.Render("create", fiber.Map{})
+	}
+}
+
+func buildIndexHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		products, err := repo.Read(ctx.Context())
+		if err != nil {
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
+		}
+
+		return ctx.Render("index", fiber.Map{
+			"Products": products,
+		})
+	}
+}
+
+func buildFeatureHandler(repo *repository.Repo) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		id := ctx.Params("id")
+
+		iid, err := strconv.Atoi(id)
+		if err != nil {
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
+		}
+
+		product, err := repo.ReadOneWithFeatures(ctx.Context(), iid)
+		if err != nil {
+			// убрать после того как добавишь обработку ошибок в ErrorHandler
+			return apperror.ErrEndFound
+		}
+
+		return ctx.Render("feature", product)
+	}
 }
