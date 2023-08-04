@@ -19,7 +19,7 @@ func TestRepo_Create(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	conn, _ := mysql.New(ctx, &database.Opt{
+	conn, err := mysql.New(ctx, &database.Opt{
 		Host:               os.Getenv("DB_Host"),
 		User:               os.Getenv("DB_USER"),
 		Password:           os.Getenv("DB_PASS"),
@@ -30,6 +30,7 @@ func TestRepo_Create(t *testing.T) {
 		MaxIdleConns:       9,
 		Debug:              true,
 	})
+	require.NoError(t, err)
 
 	repo := New(conn)
 
@@ -58,7 +59,7 @@ func TestRepo_Create(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name: "successfully insert create, get and delete record",
+			name: "failed insert create, get and delete record",
 			args: args{
 				command: &commands.CreateCommand{
 					Model:       xrand.RandStringBytesMask(302),
@@ -74,7 +75,7 @@ func TestRepo_Create(t *testing.T) {
 			wantErr: ErrInsertProducts,
 		},
 		{
-			name: "successfully insert feature create, get and delete record",
+			name: "failed insert feature create, get and delete record",
 			args: args{
 				command: &commands.CreateCommand{
 					Model:       xrand.RandStringBytesMask(302),
@@ -115,9 +116,6 @@ func TestRepo_Create(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
-
-	// ... other tests cases
-
 }
 
 func TestRepo_Update(t *testing.T) {
@@ -135,19 +133,24 @@ func TestRepo_Update(t *testing.T) {
 		MaxIdleConns:       9,
 		Debug:              true,
 	})
+	require.NoError(t, err)
+
+	repo := New(conn)
 
 	type args struct {
-		command *commands.UpdateCommand
+		createCommand *commands.CreateCommand
+		updateCommand *commands.UpdateCommand
 	}
 
 	tests := []struct {
-		name string
-		args args
+		name    string
+		args    args
+		wantErr error
 	}{
 		{
 			name: "successfully update, get and delete record",
 			args: args{
-				command: &commands.UpdateCommand{
+				createCommand: &commands.CreateCommand{
 					Model:       xrand.RandStringBytesMask(30),
 					Company:     xrand.RandStringBytesMask(30),
 					Quantity:    10,
@@ -157,76 +160,116 @@ func TestRepo_Update(t *testing.T) {
 					DisplaySize: 50,
 					Camera:      60,
 				},
+				updateCommand: &commands.UpdateCommand{
+					Model:       xrand.RandStringBytesMask(20),
+					Company:     xrand.RandStringBytesMask(20),
+					Quantity:    100,
+					Price:       200,
+					CPU:         300,
+					Memory:      400,
+					DisplaySize: 500,
+					Camera:      600,
+				},
 			},
-
-				id := repo.Update(ctx, command)
-				require.NoError(t, id)
-
-				_, err := repo.Read(ctx)
-				require.NoError(t, err)
-
-				//err = repo.Delete(ctx, &commands.DeleteCommand{
-				//	ID: command.ID,
-				//})
-				require.NoError(t, err)
+			wantErr: nil,
+		},
+		{
+			name: "failed update, get and delete record",
+			args: args{
+				createCommand: &commands.CreateCommand{
+					Model:       xrand.RandStringBytesMask(30),
+					Company:     xrand.RandStringBytesMask(30),
+					Quantity:    10,
+					Price:       20,
+					CPU:         30,
+					Memory:      40,
+					DisplaySize: 50,
+					Camera:      60,
+				},
+				updateCommand: &commands.UpdateCommand{
+					Model:       xrand.RandStringBytesMask(2230),
+					Company:     xrand.RandStringBytesMask(2440),
+					Quantity:    111,
+					Price:       33,
+					CPU:         222,
+					Memory:      44,
+					DisplaySize: 55,
+					Camera:      66,
+				},
 			},
-		// ... other tests cases
-	}
-
-	require.NoError(t, err)
-
-	repo := &Repo{
-		db: conn,
+			wantErr: ErrUpdateProduct,
+		},
+		{
+			name: "failed update, get and delete record",
+			args: args{
+				createCommand: &commands.CreateCommand{
+					Model:       xrand.RandStringBytesMask(30),
+					Company:     xrand.RandStringBytesMask(30),
+					Quantity:    10,
+					Price:       20,
+					CPU:         30,
+					Memory:      40,
+					DisplaySize: 50,
+					Camera:      60,
+				},
+				updateCommand: &commands.UpdateCommand{
+					Model:       xrand.RandStringBytesMask(20),
+					Company:     xrand.RandStringBytesMask(20),
+					Quantity:    1111100,
+					Price:       2111100,
+					CPU:         3111100,
+					Memory:      4111100,
+					DisplaySize: 5111100,
+					Camera:      6111100,
+				},
+			},
+			wantErr: ErrUpsertFeature,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.check(t, ctx, repo, tt.args.command)
+			id, err := repo.Create(ctx, tt.args.createCommand)
+			require.NoError(t, err)
+
+			tt.args.updateCommand.ID = id
+
+			err = repo.Update(ctx, tt.args.updateCommand)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("failed, expected error: %s receive %s", tt.wantErr, err)
+				}
+				return
+			}
+
+			product, err := repo.ReadOneWithFeatures(ctx, id)
+			require.NoError(t, err)
+
+			require.Equal(t, tt.args.updateCommand.Model, product.Model)
+			require.Equal(t, tt.args.updateCommand.Company, product.Company)
+			require.Equal(t, tt.args.updateCommand.Price, product.Price)
+			require.Equal(t, tt.args.updateCommand.Quantity, product.Quantity)
+			require.Equal(t, tt.args.updateCommand.Camera, product.Features.Camera)
+			require.Equal(t, tt.args.updateCommand.CPU, product.Features.CPU)
+			require.Equal(t, tt.args.updateCommand.Memory, product.Features.Memory)
+			require.Equal(t, tt.args.updateCommand.DisplaySize, product.Features.Display)
+
+			_, err = repo.Delete(ctx, &commands.DeleteCommand{
+				ID: id,
+			})
+			require.NoError(t, err)
 		})
 	}
 }
 
-func TestRepo_Feature(t *testing.T) {
+// delete
+// read
+// read one
+// read one with feature - тоже самое как с Read One тестом, только еще првоерять дополнительные поля
+
+func TestRepo_Delete(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-
-	type args struct {
-		command *commands.FeatureCommand
-	}
-	tests := []struct {
-		name  string
-		args  args
-		check func(t *testing.T, ctx context.Context, repo *Repo, command *commands.FeatureCommand)
-	}{
-		{
-			name: "successfully feature, get and delete record",
-			args: args{
-				command: &commands.FeatureCommand{
-					Model:   xrand.RandStringBytesMask(30),
-					Company: xrand.RandStringBytesMask(30),
-				},
-			},
-			check: func(t *testing.T, ctx context.Context, repo *Repo, command *commands.FeatureCommand) {
-				//err := repo.Feature(ctx, command)
-				//require.NoError(t, err)
-
-				//company := repo.Feature(ctx, command)
-				//require.NoError(t, company)
-
-				//_, err = repo.Read(ctx)
-				//require.NoError(t, err)
-
-				require.Equal(t, command.Model, command.Model)
-				require.Equal(t, command.Company, command.Company)
-
-				//	err = repo.Delete(ctx, &commands.DeleteCommand{
-				//		ID: command.ID,
-				//})
-				//require.NoError(t, err)
-			},
-		},
-		// ... other tests cases
-	}
 
 	conn, err := mysql.New(ctx, &database.Opt{
 		Host:               os.Getenv("DB_Host"),
@@ -241,13 +284,267 @@ func TestRepo_Feature(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	repo := &Repo{
-		db: conn,
+	repo := New(conn)
+
+	type args struct {
+		createCommand *commands.CreateCommand
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr error
+	}{
+		{
+			name: "successfully update, get and delete record",
+			args: args{
+				createCommand: &commands.CreateCommand{
+					Model:       xrand.RandStringBytesMask(30),
+					Company:     xrand.RandStringBytesMask(30),
+					Quantity:    10,
+					Price:       20,
+					CPU:         30,
+					Memory:      40,
+					DisplaySize: 50,
+					Camera:      60,
+				},
+			},
+			wantErr: ErrNotFound,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.check(t, ctx, repo, tt.args.command)
+			id, err := repo.Create(ctx, tt.args.createCommand)
+			require.NoError(t, err)
+
+			_, err = repo.Delete(ctx, &commands.DeleteCommand{
+				ID: id,
+			})
+			require.NoError(t, err)
+
+			_, err = repo.ReadOne(ctx, id)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("failed, expected error: %s receive %s", tt.wantErr, err)
+				}
+				return
+			}
+		})
+	}
+}
+
+func TestRepo_ReadOne(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	conn, err := mysql.New(ctx, &database.Opt{
+		Host:               os.Getenv("DB_Host"),
+		User:               os.Getenv("DB_USER"),
+		Password:           os.Getenv("DB_PASS"),
+		Name:               os.Getenv("DB_NAME"),
+		Dialect:            "mysql",
+		MaxConnMaxLifetime: time.Minute * 5,
+		MaxOpenConns:       10,
+		MaxIdleConns:       9,
+		Debug:              true,
+	})
+	require.NoError(t, err)
+
+	repo := New(conn)
+
+	type args struct {
+		createCommand *commands.CreateCommand
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantErr   error
+		replaceID int
+	}{
+		{
+			name: "successfully update, get and delete record",
+			args: args{
+				createCommand: &commands.CreateCommand{
+					Model:       xrand.RandStringBytesMask(30),
+					Company:     xrand.RandStringBytesMask(30),
+					Quantity:    10,
+					Price:       20,
+					CPU:         30,
+					Memory:      40,
+					DisplaySize: 50,
+					Camera:      60,
+				},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "successfully update, get and delete record",
+			args: args{
+				createCommand: &commands.CreateCommand{
+					Model:       xrand.RandStringBytesMask(30),
+					Company:     xrand.RandStringBytesMask(30),
+					Quantity:    10,
+					Price:       20,
+					CPU:         30,
+					Memory:      40,
+					DisplaySize: 50,
+					Camera:      60,
+				},
+			},
+			wantErr:   ErrNotFound,
+			replaceID: 9999999,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id, err := repo.Create(ctx, tt.args.createCommand)
+			require.NoError(t, err)
+
+			if tt.replaceID != 0 {
+				id = tt.replaceID
+			}
+
+			product, err := repo.ReadOne(ctx, id)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("failed, expected error: %s receive %s", tt.wantErr, err)
+				}
+				return
+			}
+
+			require.Equal(t, tt.args.createCommand.Model, product.Model)
+			require.Equal(t, tt.args.createCommand.Company, product.Company)
+			require.Equal(t, tt.args.createCommand.Price, product.Price)
+			require.Equal(t, tt.args.createCommand.Quantity, product.Quantity)
+
+			_, err = repo.Delete(ctx, &commands.DeleteCommand{
+				ID: id,
+			})
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestRepo_Read(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	conn, err := mysql.New(ctx, &database.Opt{
+		Host:               os.Getenv("DB_Host"),
+		User:               os.Getenv("DB_USER"),
+		Password:           os.Getenv("DB_PASS"),
+		Name:               os.Getenv("DB_NAME"),
+		Dialect:            "mysql",
+		MaxConnMaxLifetime: time.Minute * 5,
+		MaxOpenConns:       10,
+		MaxIdleConns:       9,
+		Debug:              true,
+	})
+	require.NoError(t, err)
+
+	repo := New(conn)
+
+	type args struct {
+		pseudoCreateCommands []*commands.UpdateCommand
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr error
+	}{
+		{
+			name: "successfully update, get and delete records",
+			args: args{
+				pseudoCreateCommands: []*commands.UpdateCommand{
+					{
+						Model:       xrand.RandStringBytesMask(30),
+						Company:     xrand.RandStringBytesMask(30),
+						Quantity:    10,
+						Price:       20,
+						CPU:         30,
+						Memory:      40,
+						DisplaySize: 50,
+						Camera:      60,
+					},
+					{
+						Model:       xrand.RandStringBytesMask(30),
+						Company:     xrand.RandStringBytesMask(30),
+						Quantity:    110,
+						Price:       120,
+						CPU:         130,
+						Memory:      140,
+						DisplaySize: 150,
+						Camera:      160,
+					},
+					{
+						Model:       xrand.RandStringBytesMask(30),
+						Company:     xrand.RandStringBytesMask(30),
+						Quantity:    210,
+						Price:       220,
+						CPU:         230,
+						Memory:      240,
+						DisplaySize: 250,
+						Camera:      260,
+					},
+				},
+			},
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			createdIDs := make([]int, 0, len(tt.args.pseudoCreateCommands))
+			for _, createCommand := range tt.args.pseudoCreateCommands {
+				id, err := repo.Create(ctx, &commands.CreateCommand{
+					Model:       createCommand.Model,
+					Company:     createCommand.Company,
+					Quantity:    createCommand.Quantity,
+					Price:       createCommand.Price,
+					CPU:         createCommand.CPU,
+					Memory:      createCommand.Memory,
+					DisplaySize: createCommand.DisplaySize,
+					Camera:      createCommand.Camera,
+				})
+				require.NoError(t, err)
+
+				createCommand.ID = id
+				createdIDs = append(createdIDs, id)
+			}
+
+			products, err := repo.Read(ctx)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("failed, expected error: %s receive %s", tt.wantErr, err)
+				}
+				return
+			}
+
+			if len(products) != len(tt.args.pseudoCreateCommands) {
+				t.Fatalf("faield, expect %d count product, receive count %d",
+					len(tt.args.pseudoCreateCommands),
+					len(products),
+				)
+			}
+
+			for _, product := range products {
+				for _, createCommand := range tt.args.pseudoCreateCommands {
+					if createCommand.ID == product.ID {
+						require.Equal(t, createCommand.Model, product.Model)
+						require.Equal(t, createCommand.Company, product.Company)
+						require.Equal(t, createCommand.Price, product.Price)
+						require.Equal(t, createCommand.Quantity, product.Quantity)
+					}
+				}
+			}
+
+			for _, id := range createdIDs {
+				_, err = repo.Delete(ctx, &commands.DeleteCommand{
+					ID: id,
+				})
+				require.NoError(t, err)
+			}
 		})
 	}
 }

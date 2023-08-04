@@ -30,6 +30,8 @@ var (
 	ErrLastInsertRow            = errors.New("get last insert row")
 	ErrFetchProductWithFeatures = errors.New("fetch products with features")
 	ErrFetchProductWithReadOne  = errors.New("fetch products with read one")
+	ErrUpdateProduct            = errors.New("update product")
+	ErrUpsertFeature            = errors.New("upsert feature")
 )
 
 type Repo struct {
@@ -174,7 +176,7 @@ func (r *Repo) Update(ctx context.Context, command *commands.UpdateCommand) erro
 		Executor().
 		ExecContext(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("update product: %w", ErrUpdateProduct)
 	}
 
 	_, err = r.db.Builder().
@@ -195,7 +197,7 @@ func (r *Repo) Update(ctx context.Context, command *commands.UpdateCommand) erro
 		Executor().
 		ExecContext(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("upsert product feature: %w", ErrUpsertFeature)
 	}
 
 	return nil
