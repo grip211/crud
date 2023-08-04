@@ -43,25 +43,6 @@ func buildRestDeleteHandler(repo *repository.Repo) fiber.Handler {
 	}
 }
 
-func buildRestEditPageHandler(repo *repository.Repo) fiber.Handler {
-	return func(ctx *fiber.Ctx) error {
-		id := ctx.Params("id")
-
-		iid, err := strconv.Atoi(id)
-		if err != nil {
-			// убрать после того как добавишь обработку ошибок в ErrorHandler
-			return err
-		}
-
-		prod, err := repo.ReadOneWithFeatures(ctx.Context(), iid)
-		if err != nil {
-			return ctx.Status(http.StatusNotFound).SendString("NotFound")
-		}
-
-		return ctx.JSON(prod)
-	}
-}
-
 type EditForm struct {
 	ID       string `form:"id" json:"id"`
 	Model    string `form:"model" json:"model"`
