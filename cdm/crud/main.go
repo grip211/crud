@@ -9,14 +9,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/grip211/crud/pkg/apperror"
-
 	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html/v2"
 	"github.com/urfave/cli/v2"
 
+	"github.com/grip211/crud/pkg/apperror"
 	"github.com/grip211/crud/pkg/commands"
 	"github.com/grip211/crud/pkg/database"
 	"github.com/grip211/crud/pkg/database/mysql"
