@@ -64,16 +64,16 @@ func buildRestEditPageHandler(repo *repository.Repo) fiber.Handler {
 }
 
 type EditForm struct {
-	ID       string `form:"id"`
-	Model    string `form:"model"`
-	Company  string `form:"company"`
-	Quantity string `from:"quantity"`
-	Price    string `form:"price"`
+	ID       string `form:"id" json:"id"`
+	Model    string `form:"model" json:"model"`
+	Company  string `form:"company" json:"company"`
+	Quantity string `from:"quantity" json:"quantity"`
+	Price    string `form:"price" json:"price"`
 
-	CPU     string `form:"cpu"`
-	Memory  string `form:"memory"`
-	Display string `form:"display"`
-	Camera  string `form:"camera"`
+	CPU     string `form:"cpu" json:"CPU"`
+	Memory  string `form:"memory" json:"memory"`
+	Display string `form:"display" json:"display"`
+	Camera  string `form:"camera" json:"camera"`
 }
 
 // получаем измененные данные и сохраняем их в БД
@@ -156,23 +156,6 @@ func buildRestCreateHandler(repo *repository.Repo) fiber.Handler {
 		return ctx.JSON("create")
 	}
 }
-
-/*
-func buildIndexHandler(repo *repository.Repo) fiber.Handler {
-	return func(ctx *fiber.Ctx) error {
-		products, err := repo.Read(ctx.Context())
-		if err != nil {
-			// убрать после того как добавишь обработку ошибок в ErrorHandler
-			return apperror.ErrEndFound
-		}
-
-		return ctx.Render("index", fiber.Map{
-			"Products": products,
-		})
-	}
-}
-
-*/
 
 func buildRestIndexHandler(repo *repository.Repo) fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
@@ -264,12 +247,9 @@ func Main(ctx *cli.Context) error {
 		v1.Get("/feature/:id", buildRestFeatureHandler(repo))
 
 		server.Get("/", buildRestIndexHandler(repo))
-		server.Get("/create", buildRestCreateHandler(repo))
-		server.Get("/delete/:id", buildRestDeleteHandler(repo))
-		server.Get("/edit/:id", buildRestEditPageHandler(repo))
+		server.Delete("/delete/:id", buildRestDeleteHandler(repo))
+		server.Post("/edit/:id", buildRestEditPageHandler(repo))
 		server.Get("/feature/:id", buildRestFeatureHandler(repo))
-
-		server.Post("/edit/:id?", buildRestEditHandler(repo))
 		server.Post("/create", buildRestCreateHandler(repo))
 
 		ln, err := signal.Listener(appContext, 1, "/tmp/crud.sock", ":8181")
