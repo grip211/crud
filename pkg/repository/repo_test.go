@@ -107,8 +107,10 @@ func TestRepo_Create(t *testing.T) {
 
 			require.Equal(t, product.ID, id)
 
-			require.Equal(t, product.Model, tt.args)
-			require.Equal(t, product.Company, tt.args)
+			require.Equal(t, tt.args.command.Model, product.Model)
+			require.Equal(t, tt.args.command.Company, product.Company)
+			require.Equal(t, tt.args.command.Price, product.Price)
+			require.Equal(t, tt.args.command.Quantity, product.Quantity)
 
 			_, err = repo.Delete(ctx, &commands.DeleteCommand{
 				ID: id,
